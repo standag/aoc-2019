@@ -170,4 +170,3 @@ class IntCodeComputer:
             pass
         except KeyError:
             raise InvalidOperation(operation)
-
