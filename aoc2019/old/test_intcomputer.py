@@ -88,4 +88,3 @@ def test_day_9_3():
     computer = IntCodeComputer(tape=[104, 1125899906842624, 99])
     computer.run()
     assert computer.memory == [1125899906842624]
-

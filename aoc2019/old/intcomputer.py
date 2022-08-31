@@ -164,8 +164,12 @@ class IntCodeComputer:
                 # print(self.pointer, opcode)
                 operation = opcode[-2:]
                 result = OPERATIONS[operation](self).run(opcode)
-                if stop_after_number_of_output and len(self.memory) == stop_after_number_of_output:
-                    break
+                print(result)
+                if (
+                    stop_after_number_of_output
+                    and len(self.memory) == stop_after_number_of_output
+                ):
+                    return result
         except HaltInstruction:
             pass
         except KeyError:
