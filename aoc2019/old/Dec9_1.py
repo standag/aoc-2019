@@ -4,6 +4,7 @@ tape = [1102,34463338,34463338,63,1007,63,34463338,63,1005,63,53,1102,1,3,1000,1
 
 computer = IntCodeComputer(tape)
 computer.run([1])
+breakpoint()
 computer = IntCodeComputer(tape)
 computer.run([2])
 print(computer.memory)

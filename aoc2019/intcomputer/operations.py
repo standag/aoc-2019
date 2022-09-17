@@ -1,14 +1,17 @@
 from dataclasses import replace
 
-from .models import OpCode, Tape
+from .models import ImprovedTape, Mode, OpCode, ReadWrite, SimpleTape, Tape
 from .tape_operations import (_get, _get_multiple, _pop, _replace_instructions,
                               _take)
 
-# Parameters that an instruction writes to will never be in immediate mode.
-# TODO: solve this problem
 
 def _addition(tape: Tape, opcode: OpCode) -> Tape:
-    first, second, third = _get_multiple(tape, _take(tape, 3), opcode.modes)  # third is location, immediate mode by default
+    first, second, third = _get_multiple(
+        tape,
+        _take(tape, 3),
+        opcode.modes,
+        (ReadWrite.read, ReadWrite.read, ReadWrite.write),
+    )
     result = first + second
     return replace(
         tape,
@@ -18,7 +21,12 @@ def _addition(tape: Tape, opcode: OpCode) -> Tape:
 
 
 def _multiplication(tape: Tape, opcode: OpCode) -> Tape:
-    first, second, third = _get_multiple(tape, _take(tape, 3), opcode.modes)
+    first, second, third = _get_multiple(
+        tape,
+        _take(tape, 3),
+        opcode.modes,
+        (ReadWrite.read, ReadWrite.read, ReadWrite.write),
+    )
     result = first * second
     return replace(
         tape,
@@ -28,17 +36,41 @@ def _multiplication(tape: Tape, opcode: OpCode) -> Tape:
 
 
 def _update(tape: Tape, opcode: OpCode) -> Tape:
-    assert tape.ram is not None
+    position = _get(tape, _pop(tape), opcode.modes[0], ReadWrite.write)
+    memory = []
+    match tape:
+        case SimpleTape():
+            assert tape.ram is not None
+            ram = tape.ram
+        case ImprovedTape():
+            ram = tape.memory[-1]
+            memory = tape.memory[:-1]
+        case _:
+            raise NotImplementedError
+
     return replace(
         tape,
         pointer=tape.pointer + 1,
-        instructions=_replace_instructions(tape.instructions, _pop(tape), tape.ram),
+        instructions=_replace_instructions(
+            tape.instructions,
+            position,
+            ram,
+        ),
+        memory=memory,
     )
 
 
 def _read(tape: Tape, opcode: OpCode) -> Tape:
     value = _get(tape, _pop(tape), opcode.modes[0])
-    return replace(tape, pointer=tape.pointer + 1, ram=value)
+    update = dict()
+    match tape:
+        case SimpleTape():
+            update = dict(ram=value)
+        case ImprovedTape():
+            update = dict(memory=tape.memory + [value])
+        case _:
+            raise NotImplementedError
+    return replace(tape, pointer=tape.pointer + 1, **update)
 
 
 def _jump_if_true(tape: Tape, opcode: OpCode) -> Tape:
@@ -52,7 +84,12 @@ def _jump_if_false(tape: Tape, opcode: OpCode) -> Tape:
 
 
 def _less_than(tape: Tape, opcode: OpCode) -> Tape:
-    first, second, third = _get_multiple(tape, _take(tape, 3), opcode.modes)
+    first, second, third = _get_multiple(
+        tape,
+        _take(tape, 3),
+        opcode.modes,
+        (ReadWrite.read, ReadWrite.read, ReadWrite.write),
+    )
     return replace(
         tape,
         pointer=tape.pointer + 3,
@@ -63,7 +100,12 @@ def _less_than(tape: Tape, opcode: OpCode) -> Tape:
 
 
 def _equals(tape: Tape, opcode: OpCode) -> Tape:
-    first, second, third = _get_multiple(tape, _take(tape, 3), opcode.modes)
+    first, second, third = _get_multiple(
+        tape,
+        _take(tape, 3),
+        opcode.modes,
+        (ReadWrite.read, ReadWrite.read, ReadWrite.write),
+    )
     return replace(
         tape,
         pointer=tape.pointer + 3,
@@ -71,3 +113,20 @@ def _equals(tape: Tape, opcode: OpCode) -> Tape:
             tape.instructions, third, int(first == second)
         ),
     )
+
+
+def _adjust_relative_offset(tape: Tape, opcode: OpCode) -> Tape:
+    """
+    >>> from collections import defaultdict
+    >>> from .main import _int_to_opcode
+    >>> _adjust_relative_offset(ImprovedTape(instructions=defaultdict(int,enumerate([9,2000])), pointer=1), _int_to_opcode(9))
+    ImprovedTape(instructions=defaultdict(int,enumerate([9,2000]))), _int_to_opcode(9), offset=2000)
+    """
+    value = _get(tape, _pop(tape), opcode.modes[0])
+    return replace(tape, pointer=tape.pointer + 1, offset=tape.offset + value)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

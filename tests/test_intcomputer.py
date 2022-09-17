@@ -3,7 +3,8 @@ from dataclasses import replace
 
 import pytest
 
-from aoc2019.intcomputer import Tape, run
+from aoc2019.intcomputer import SimpleTape as Tape
+from aoc2019.intcomputer import prepare_improved_tape, run
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -65,3 +66,49 @@ def test_run_day5(ram: int, result: int) -> None:
 
     assert isinstance(tape_result, Tape)
     assert tape_result.ram == result
+
+
+def test_run_day9():
+    instructions = [
+        109,
+        1,
+        204,
+        -1,
+        1001,
+        100,
+        1,
+        100,
+        1008,
+        100,
+        16,
+        101,
+        1006,
+        101,
+        0,
+        99,
+    ]
+    tape = prepare_improved_tape(instructions)
+    result = run(tape)
+    assert result.memory == instructions
+
+
+@pytest.mark.parametrize(
+    "instructions, result_memory",
+    [
+        ([1102, 34915192, 34915192, 7, 4, 7, 99, 0], [34915192 * 34915192]),
+        ([104, 1125899906842624, 99], [1125899906842624]),
+    ],
+)
+def test_run_day9_second(instructions: list[int], result_memory: list[int]):
+    tape = prepare_improved_tape(instructions)
+    result = run(tape)
+    assert result.memory == result_memory
+
+
+def test_run_day9_third():
+    tape = prepare_improved_tape([109, 19, 204, -34, 99])
+    tape.offset = 2000
+    tape.instructions[1985] = 999
+    result = run(tape)
+    assert result.offset == 2019
+    assert result.memory[0] == 999
